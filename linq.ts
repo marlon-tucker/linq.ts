@@ -1,3 +1,5 @@
+import { List, Range, Repeat, Set } from 'immutable'
+
 /**
  * LinQ to TypeScript
  *
@@ -7,14 +9,14 @@
  * Copyright © 2016 Flavio Corpa. All rights reserved.
  *
  */
-export class List<T> {
-  protected _elements: T[]
+export class Enumerable<T> {
+  protected _elements: List<T>
 
   /**
    * Defaults the elements of the list
    */
   constructor(elements: T[] = []) {
-    this._elements = elements
+    this._elements = List(elements)
   }
 
   /**
@@ -35,7 +37,7 @@ export class List<T> {
    * Applies an accumulator function over a sequence.
    */
   public Aggregate<U>(
-    accumulator: (accum: U, value?: T, index?: number, list?: T[]) => any,
+    accumulator: (accum: U, value?: T, index?: number) => U,
     initialValue?: U
   ): any {
     return this._elements.reduce(accumulator, initialValue)
@@ -44,9 +46,7 @@ export class List<T> {
   /**
    * Determines whether all elements of a sequence satisfy a condition.
    */
-  public All(
-    predicate: (value?: T, index?: number, list?: T[]) => boolean
-  ): boolean {
+  public All(predicate: (value?: T, index?: number) => boolean): boolean {
     return this._elements.every(predicate)
   }
 
@@ -54,15 +54,9 @@ export class List<T> {
    * Determines whether a sequence contains any elements.
    */
   public Any(): boolean
-  public Any(
-    predicate: (value?: T, index?: number, list?: T[]) => boolean
-  ): boolean
-  public Any(
-    predicate?: (value?: T, index?: number, list?: T[]) => boolean
-  ): boolean {
-    return predicate
-      ? this._elements.some(predicate)
-      : this._elements.length > 0
+  public Any(predicate: (value?: T, index?: number) => boolean): boolean
+  public Any(predicate?: (value?: T, index?: number) => boolean): boolean {
+    return predicate ? this._elements.some(predicate) : this._elements.size > 0
   }
 
   /**
@@ -70,76 +64,65 @@ export class List<T> {
    * a transform function on each element of the input sequence.
    */
   public Average(): number
-  public Average(
-    transform: (value?: T, index?: number, list?: T[]) => any
-  ): number
-  public Average(
-    transform?: (value?: T, index?: number, list?: T[]) => any
-  ): number {
+  public Average(transform: (value?: T, index?: number) => any): number
+  public Average(transform?: (value?: T, index?: number) => any): number {
     return this.Sum(transform) / this.Count(transform)
   }
 
   /**
    * Casts the elements of a sequence to the specified type.
    */
-  public Cast<U>(): List<U> {
-    return new List<U>(this._elements as any)
+  public Cast<U>(): Enumerable<U> {
+    return new Enumerable<U>(this._elements as any)
   }
 
   /**
    * Concatenates two sequences.
    */
-  public Concat(list: List<T>): List<T> {
-    return new List<T>(this._elements.concat(list.ToArray()))
+  public Concat(list: Enumerable<T>): Enumerable<T> {
+    return new Enumerable([...this._elements.toJS(), ...list._elements.toJS()])
   }
 
   /**
    * Determines whether an element is in the List<T>.
    */
   public Contains(element: T): boolean {
-    return this._elements.some(x => x === element)
+    return this._elements.includes(element)
   }
 
   /**
    * Returns the number of elements in a sequence.
    */
   public Count(): number
-  public Count(
-    predicate: (value?: T, index?: number, list?: T[]) => boolean
-  ): number
-  public Count(
-    predicate?: (value?: T, index?: number, list?: T[]) => boolean
-  ): number {
-    return predicate ? this.Where(predicate).Count() : this._elements.length
+  public Count(predicate: (value?: T, index?: number) => boolean): number
+  public Count(predicate?: (value?: T, index?: number) => boolean): number {
+    return predicate ? this.Where(predicate).Count() : this._elements.size
   }
 
   /**
    * Returns the elements of the specified sequence or the type parameter's default value
    * in a singleton collection if the sequence is empty.
    */
-  public DefaultIfEmpty(defaultValue?: T): List<T> {
-    return this.Count() ? this : new List<T>([defaultValue])
+  public DefaultIfEmpty(defaultValue?: T): Enumerable<T> {
+    return this.Count() ? this : new Enumerable<T>([defaultValue])
   }
 
   /**
    * Returns distinct elements from a sequence by using the default equality comparer to compare values.
    */
-  public Distinct(): List<T> {
-    return this.Where((value, index, iter) => iter.indexOf(value) === index)
+  public Distinct(): Enumerable<T> {
+    return new Enumerable(Set(this._elements).toArray())
   }
 
   /**
    * Returns distinct elements from a sequence according to specified key selector.
    */
-  public DistinctBy(keySelector: (key: T) => any): List<T> {
+  public DistinctBy(keySelector: (key: T) => any): Enumerable<T> {
     const groups = this.GroupBy(keySelector, obj => obj)
-    const results = new List<T>()
-    for (let index in groups) {
-      if (groups.hasOwnProperty(index)) {
-        results.Add(groups[index][0])
-      }
-    }
-    return results
+    return Object.keys(groups).reduce((results, key) => {
+      results.Add(groups[key][0])
+      return results
+    }, new Enumerable<T>())
   }
 
   /**
@@ -147,7 +130,7 @@ export class List<T> {
    */
   public ElementAt(index: number): T {
     if (index < this.Count()) {
-      return this._elements[index]
+      return this._elements.get(index)
     } else {
       const MSG =
         'ArgumentOutOfRangeException: index is less than 0 or greater than or equal to the number of elements in source.'
@@ -165,7 +148,7 @@ export class List<T> {
   /**
    * Produces the set difference of two sequences by using the default equality comparer to compare values.
    */
-  public Except(source: List<T>): List<T> {
+  public Except(source: Enumerable<T>): Enumerable<T> {
     return this.Where(x => !source.Contains(x))
   }
 
@@ -178,7 +161,7 @@ export class List<T> {
     predicate?: (value?: T, index?: number, list?: T[]) => boolean
   ): T {
     if (this.Count()) {
-      return predicate ? this.Where(predicate).First() : this._elements[0]
+      return predicate ? this.Where(predicate).First() : this._elements.first()
     } else {
       throw new Error(
         'InvalidOperationException: The source sequence is empty.'
@@ -202,8 +185,8 @@ export class List<T> {
   /**
    * Performs the specified action on each element of the List<T>.
    */
-  public ForEach(action: (value?: T, index?: number, list?: T[]) => any): void {
-    return this._elements.forEach(action)
+  public ForEach(action: (value?: T, index?: number) => any): void {
+    this._elements.forEach(action)
   }
 
   /**
@@ -226,11 +209,11 @@ export class List<T> {
    * The default equality comparer is used to compare keys.
    */
   public GroupJoin<U>(
-    list: List<U>,
+    list: Enumerable<U>,
     key1: (k: T) => any,
     key2: (k: U) => any,
-    result: (first: T, second: List<U>) => any
-  ): List<any> {
+    result: (first: T, second: Enumerable<U>) => any
+  ): Enumerable<any> {
     return this.Select((x, y) =>
       result(x, list.Where(z => key1(x) === key2(z)))
     )
@@ -247,7 +230,7 @@ export class List<T> {
    * Inserts an element into the List<T> at the specified index.
    */
   public Insert(index: number, element: T): void | Error {
-    if (index < 0 || index > this._elements.length) {
+    if (index < 0 || index > this._elements.size) {
       throw new Error('Index is out of range.')
     }
 
@@ -257,23 +240,23 @@ export class List<T> {
   /**
    * Produces the set intersection of two sequences by using the default equality comparer to compare values.
    */
-  public Intersect(source: List<T>): List<T> {
+  public Intersect(source: Enumerable<T>): Enumerable<T> {
     return this.Where(x => source.Contains(x))
   }
 
   /**
-   * Correlates the elements of two sequences based on matching keys. The default equality comparer is used to compare keys.
+   * TODO: Correlates the elements of two sequences based on matching keys. The default equality comparer is used to compare keys.
    */
-  public Join<U>(
-    list: List<U>,
-    key1: (key: T) => any,
-    key2: (key: U) => any,
-    result: (first: T, second: U) => any
-  ): List<any> {
-    return this.SelectMany(x =>
-      list.Where(y => key2(y) === key1(x)).Select(z => result(x, z))
-    )
-  }
+  // public Join<U>(
+  //   list: Enumerable<U>,
+  //   key1: (key: T) => any,
+  //   key2: (key: U) => any,
+  //   result: (first: T, second: U) => any
+  // ): Enumerable<any> {
+  //   return this.SelectMany(x =>
+  //     list.Where(y => key2(y) === key1(x)).Select(z => result(x, z))
+  //   )
+  // }
 
   /**
    * Returns the last element of a sequence.
@@ -322,7 +305,7 @@ export class List<T> {
   /**
    * Filters the elements of a sequence based on a specified type.
    */
-  public OfType<U>(type: any): List<U> {
+  public OfType<U>(type: any): Enumerable<U> {
     let typeName
     switch (type) {
       case Number:
@@ -349,9 +332,9 @@ export class List<T> {
   /**
    * Sorts the elements of a sequence in ascending order according to a key.
    */
-  public OrderBy(keySelector: (key: T) => any): List<T> {
+  public OrderBy(keySelector: (key: T) => any): Enumerable<T> {
     return new OrderedList<T>(
-      this._elements,
+      this._elements.toJS(),
       ComparerHelper.ComparerForKey(keySelector, false)
     )
   }
@@ -359,9 +342,9 @@ export class List<T> {
   /**
    * Sorts the elements of a sequence in descending order according to a key.
    */
-  public OrderByDescending(keySelector: (key: T) => any): List<T> {
+  public OrderByDescending(keySelector: (key: T) => any): Enumerable<T> {
     return new OrderedList<T>(
-      this._elements,
+      this._elements.toJS(),
       ComparerHelper.ComparerForKey(keySelector, true)
     )
   }
@@ -369,15 +352,26 @@ export class List<T> {
   /**
    * Performs a subsequent ordering of the elements in a sequence in ascending order according to a key.
    */
-  public ThenBy(keySelector: (key: T) => any): List<T> {
+  public ThenBy(keySelector: (key: T) => any): Enumerable<T> {
     return this.OrderBy(keySelector)
   }
 
   /**
    * Performs a subsequent ordering of the elements in a sequence in descending order, according to a key.
    */
-  public ThenByDescending(keySelector: (key: T) => any): List<T> {
+  public ThenByDescending(keySelector: (key: T) => any): Enumerable<T> {
     return this.OrderByDescending(keySelector)
+  }
+
+  /**
+   * Generates a sequence of integral numbers within a specified range.
+   */
+  public static Range(
+    start?: number,
+    count?: number,
+    step?: number
+  ): Enumerable<number> {
+    return new Enumerable(Range(start, count, step).toJS())
   }
 
   /**
@@ -394,7 +388,7 @@ export class List<T> {
    */
   public RemoveAll(
     predicate: (value?: T, index?: number, list?: T[]) => boolean
-  ): List<T> {
+  ): Enumerable<T> {
     return this.Where(this._negate(predicate))
   }
 
@@ -406,47 +400,46 @@ export class List<T> {
   }
 
   /**
+   * Generates a sequence that contains one repeated value.
+   */
+  public static Repeat<T>(element: T, count: number): Enumerable<T> {
+    return new Enumerable(Repeat(element, count).toJS())
+  }
+
+  /**
    * Reverses the order of the elements in the entire List<T>.
    */
-  public Reverse(): List<T> {
-    return new List<T>(this._elements.reverse())
+  public Reverse(): Enumerable<T> {
+    this._elements.reverse()
+    return this
   }
 
   /**
    * Projects each element of a sequence into a new form.
    */
   public Select<TOut>(
-    mapper: (value?: T, index?: number, list?: T[]) => TOut
-  ): List<TOut> {
-    return new List<any>(this._elements.map(mapper))
+    mapper: (value?: T, index?: number) => TOut
+  ): Enumerable<TOut> {
+    return new Enumerable<any>(this._elements.map(mapper).toJS())
   }
 
   /**
    * Projects each element of a sequence to a List<any> and flattens the resulting sequences into one sequence.
    */
   public SelectMany<TOut extends List<any>>(
-    mapper: (value?: T, index?: number, list?: T[]) => TOut
+    mapper: (value?: T, index?: number) => TOut
   ): TOut {
     return this.Aggregate(
-      (ac, v, i) => (
-        ac.AddRange(
-          this.Select(mapper)
-            .ElementAt(i)
-            .ToArray()
-        ),
-        ac
-      ),
-      new List<TOut>()
+      (ac, v, i) => (ac.Add(this.Select(mapper).ElementAt(i)), ac),
+      new Enumerable<TOut>()
     )
   }
 
   /**
    * Determines whether two sequences are equal by comparing the elements by using the default equality comparer for their type.
    */
-  public SequenceEqual(list: List<T>): boolean {
-    return !!this._elements.reduce(
-      (x, y, z) => (list._elements[z] === y ? x : undefined)
-    )
+  public SequenceEqual(list: Enumerable<T>): boolean {
+    return this._elements.equals(list._elements)
   }
 
   /**
@@ -475,8 +468,9 @@ export class List<T> {
   /**
    * Bypasses a specified number of elements in a sequence and then returns the remaining elements.
    */
-  public Skip(amount: number): List<T> {
-    return new List<T>(this._elements.slice(Math.max(0, amount)))
+  public Skip(amount: number): Enumerable<T> {
+    this._elements.skip(amount)
+    return this
   }
 
   /**
@@ -484,7 +478,7 @@ export class List<T> {
    */
   public SkipWhile(
     predicate: (value?: T, index?: number, list?: T[]) => boolean
-  ): List<T> {
+  ): Enumerable<T> {
     return this.Skip(
       this.Aggregate(
         (ac, val) => (predicate(this.ElementAt(ac)) ? ++ac : ac),
@@ -512,29 +506,24 @@ export class List<T> {
   /**
    * Returns a specified number of contiguous elements from the start of a sequence.
    */
-  public Take(amount: number): List<T> {
-    return new List<T>(this._elements.slice(0, Math.max(0, amount)))
+  public Take(amount: number): Enumerable<T> {
+    return new Enumerable(this._elements.take(amount).toJS())
   }
 
   /**
    * Returns elements from a sequence as long as a specified condition is true.
    */
   public TakeWhile(
-    predicate: (value?: T, index?: number, list?: T[]) => boolean
-  ): List<T> {
-    return this.Take(
-      this.Aggregate(
-        (ac, val) => (predicate(this.ElementAt(ac)) ? ++ac : ac),
-        0
-      )
-    )
+    predicate: (value?: T, index?: number) => boolean
+  ): Enumerable<T> {
+    return new Enumerable(this._elements.takeWhile(predicate).toJS())
   }
 
   /**
-   * Copies the elements of the List<T> to a new array.
+   * Turns the elements of the List<T> into a native JavaScript Array<T>.
    */
   public ToArray(): T[] {
-    return this._elements
+    return this._elements.toJS()
   }
 
   /**
@@ -565,7 +554,7 @@ export class List<T> {
   /**
    * Creates a List<T> from an Enumerable.List<T>.
    */
-  public ToList(): List<T> {
+  public ToList(): Enumerable<T> {
     return this
   }
 
@@ -582,7 +571,7 @@ export class List<T> {
   /**
    * Produces the set union of two sequences by using the default equality comparer.
    */
-  public Union(list: List<T>): List<T> {
+  public Union(list: Enumerable<T>): Enumerable<T> {
     return this.Concat(list).Distinct()
   }
 
@@ -590,18 +579,18 @@ export class List<T> {
    * Filters a sequence of values based on a predicate.
    */
   public Where(
-    predicate: (value?: T, index?: number, list?: T[]) => boolean
-  ): List<T> {
-    return new List<T>(this._elements.filter(predicate))
+    predicate: (value?: T, index?: number) => boolean
+  ): Enumerable<T> {
+    return new Enumerable<T>([...this._elements.filter(predicate).toJS()])
   }
 
   /**
    * Applies a specified function to the corresponding elements of two sequences, producing a sequence of the results.
    */
   public Zip<U, TOut>(
-    list: List<U>,
+    list: Enumerable<U>,
     result: (first: T, second: U) => TOut
-  ): List<TOut> {
+  ): Enumerable<TOut> {
     return list.Count() < this.Count()
       ? list.Select((x, y) => result(this.ElementAt(y), x))
       : this.Select((x, y) => result(x, list.ElementAt(y)))
@@ -635,20 +624,12 @@ class ComparerHelper {
     _keySelector: (key: T) => any,
     descending?: boolean
   ): number {
-    let sortKeyA = _keySelector(a)
-    let sortKeyB = _keySelector(b)
+    const sortKeyA = _keySelector(a)
+    const sortKeyB = _keySelector(b)
     if (sortKeyA > sortKeyB) {
-      if (!descending) {
-        return 1
-      } else {
-        return -1
-      }
+      return !descending ? 1 : -1
     } else if (sortKeyA < sortKeyB) {
-      if (!descending) {
-        return -1
-      } else {
-        return 1
-      }
+      return !descending ? -1 : 1
     } else {
       return 0
     }
@@ -675,7 +656,7 @@ class ComparerHelper {
  * The query represented by this method is not executed until the object is enumerated either by
  * calling its ToDictionary, ToLookup, ToList or ToArray methods
  */
-class OrderedList<T> extends List<T> {
+class OrderedList<T> extends Enumerable<T> {
   constructor(elements: T[], private _comparer: (a: T, b: T) => number) {
     super(elements)
     this._elements.sort(this._comparer)
@@ -685,9 +666,9 @@ class OrderedList<T> extends List<T> {
    * Performs a subsequent ordering of the elements in a sequence in ascending order according to a key.
    * @override
    */
-  public ThenBy(keySelector: (key: T) => any): List<T> {
+  public ThenBy(keySelector: (key: T) => any): Enumerable<T> {
     return new OrderedList(
-      this._elements,
+      this._elements.toJS(),
       ComparerHelper.ComposeComparers(
         this._comparer,
         ComparerHelper.ComparerForKey(keySelector, false)
@@ -699,37 +680,13 @@ class OrderedList<T> extends List<T> {
    * Performs a subsequent ordering of the elements in a sequence in descending order, according to a key.
    * @override
    */
-  public ThenByDescending(keySelector: (key: T) => any): List<T> {
+  public ThenByDescending(keySelector: (key: T) => any): Enumerable<T> {
     return new OrderedList(
-      this._elements,
+      this._elements.toJS(),
       ComparerHelper.ComposeComparers(
         this._comparer,
         ComparerHelper.ComparerForKey(keySelector, true)
       )
     )
-  }
-}
-
-export class Enumerable {
-  /**
-   * Generates a sequence of integral numbers within a specified range.
-   */
-  public static Range(start: number, count: number): List<number> {
-    let result = new List<number>()
-    while (count--) {
-      result.Add(start++)
-    }
-    return result
-  }
-
-  /**
-   * Generates a sequence that contains one repeated value.
-   */
-  public static Repeat<T>(element: T, count: number): List<T> {
-    let result = new List<T>()
-    while (count--) {
-      result.Add(element)
-    }
-    return result
   }
 }

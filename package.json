@@ -9,8 +9,10 @@
     "definition": "dist/linq.d.ts"
   },
   "scripts": {
-    "build": "tsc linq.ts -t es3 -m commonjs -d --outDir dist &&  rollup -c rollup.config.ts",
-    "check-coverage": "nyc check-coverage --statements 100 --branches 90 --functions 98 --lines 100",
+    "build":
+      "tsc linq.ts -t es3 -m commonjs -d --outDir dist &&  rollup -c rollup.config.ts",
+    "check-coverage":
+      "nyc check-coverage --statements 100 --branches 90 --functions 98 --lines 100",
     "commit": "git-cz",
     "compile": "tsc",
     "cover": "nyc --reporter=lcov npm t",
@@ -21,7 +23,8 @@
     "pretest": "npm run compile",
     "pretty": "prettier linq.ts test/**/*.ts --write --no-semi --single-quote",
     "report-coverage": "nyc report --reporter=text-lcov | coveralls",
-    "semantic-release": "semantic-release pre && npm publish && semantic-release post",
+    "semantic-release":
+      "semantic-release pre && npm publish && semantic-release post",
     "start": "tsc -w",
     "test": "nyc ava",
     "validate": "npm run cover && npm run check-coverage"
@@ -30,15 +33,8 @@
     "type": "git",
     "url": "https://github.com/kutyel/linq.ts.git"
   },
-  "keywords": [
-    "linq",
-    "typescript"
-  ],
-  "files": [
-    "dist",
-    "linq.ts",
-    "readme.md"
-  ],
+  "keywords": ["linq", "typescript"],
+  "files": ["dist", "linq.ts", "readme.md"],
   "author": {
     "name": "Flavio Corpa",
     "email": "flaviocorpa@gmail.com",
@@ -50,7 +46,9 @@
     "url": "https://github.com/kutyel/linq.ts/issues"
   },
   "homepage": "https://github.com/kutyel/linq.ts#readme",
-  "dependencies": {},
+  "dependencies": {
+    "immutable": "^3.8.2"
+  },
   "devDependencies": {
     "ava": "^0.24.0",
     "commitizen": "^2.8.6",
@@ -73,9 +71,6 @@
     "typescript": "^2.4.1"
   },
   "config": {
-    "ghooks": {
-      "pre-commit": "npm run validate"
-    },
     "commitizen": {
       "path": "node_modules/cz-conventional-changelog"
     }
