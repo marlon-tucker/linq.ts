@@ -65,13 +65,13 @@ const keyComparer = <T>(
  * Copyright © 2016 Flavio Corpa. All rights reserved.
  *
  */
-export class List<T> {
+abstract class ListInternal<T> {
   protected _elements: T[]
 
   /**
    * Defaults the elements of the list
    */
-  constructor(elements: T[] = []) {
+  constructor(elements: T[]) {
     this._elements = elements
   }
 
@@ -218,8 +218,11 @@ export class List<T> {
   /**
    * Returns the element at a specified index in a sequence or a default value if the index is out of range.
    */
-  public ElementAtOrDefault(index: number): T {
-    return this.ElementAt(index) || undefined
+  public ElementAtOrDefault(
+    index: number,
+    defaultValue: T | undefined = undefined
+  ): T {
+    return this.ElementAt(index) || defaultValue
   }
 
   /**
@@ -288,6 +291,49 @@ export class List<T> {
       }
       return ac
     }, initialValue)
+  }
+
+  public GroupByComplex<TKey, TGroup = T>(
+    keyExtractor: (item: T) => TKey,
+    mapper?: (item: T) => TGroup,
+    hashExtractor?: (item: T) => string | number
+  ): Grouping<TKey, TGroup> {
+    if (!this.Any()) {
+      return new Grouping<TKey, TGroup>()
+    } else {
+      if (!mapper) {
+        mapper = val => <TGroup>(<any>val)
+      }
+
+      const firstElement = this.First()
+      const keyTest = keyExtractor(firstElement)
+      const validHashKey =
+        typeof keyTest === 'string' || typeof keyTest === 'number'
+      if (!validHashKey && !hashExtractor) {
+        throw new Error(
+          'keyExtractor does not return either a string or number, and no hashExtractor given.'
+        )
+      }
+
+      const hashLookup: { [key: string]: IGroupingElement<TKey, TGroup> } = {}
+      this.ForEach(item => {
+        const key = keyExtractor(item)
+        const hash = (validHashKey ? key : hashExtractor(item)) as string
+        let entry = hashLookup[hash]
+        if (typeof entry === 'undefined') {
+          entry = { key: key, items: new List<TGroup>() }
+          hashLookup[hash] = entry
+        }
+        entry.items.Add(mapper(item))
+      })
+
+      const grouping = new Grouping<TKey, TGroup>()
+      for (const key in hashLookup) {
+        grouping.Add(hashLookup[key])
+      }
+
+      return grouping
+    }
   }
 
   /**
@@ -612,7 +658,7 @@ export class List<T> {
   /**
    * Copies the elements of the List<T> to a new array.
    */
-  public ToArray(): T[] {
+  public ToArray(): any[] {
     return this._elements
   }
 
@@ -690,6 +736,22 @@ export class List<T> {
   }
 }
 
+export class List<T> extends ListInternal<T> {
+  /**
+   * Defaults the elements of the list
+   */
+  constructor(elements: T[] = []) {
+    super(elements)
+  }
+
+  /**
+   * Copies the elements of the List<T> to a new array.
+   */
+  public ToArray(): T[] {
+    return super.ToArray()
+  }
+}
+
 /**
  * Represents a sorted sequence. The methods of this class are implemented by using deferred execution.
  * The immediate return value is an object that stores all the information that is required to perform the action.
@@ -722,6 +784,30 @@ class OrderedList<T> extends List<T> {
       this._elements,
       composeComparers(this._comparer, keyComparer(keySelector, true))
     )
+  }
+}
+
+export interface IGroupingElement<TKey, TGroup> {
+  key: TKey
+  items: List<TGroup>
+}
+
+export class Grouping<TKey, TGroup> extends ListInternal<
+  IGroupingElement<TKey, TGroup>
+> {
+  /**
+   * Defaults the elements of the list
+   */
+  constructor(elements: IGroupingElement<TKey, TGroup>[] = []) {
+    super(elements)
+  }
+
+  public ToArray(): { key: TKey; items: TGroup[] }[] {
+    const items = this.Select(g => ({
+      key: g.key,
+      items: g.items.ToArray()
+    })).ToArray()
+    return items
   }
 }
 

@@ -1,5 +1,5 @@
 import test from 'ava'
-import { List } from '..'
+import { List, Grouping, IGroupingElement } from '..'
 
 interface IPackage {
   Company: string
@@ -259,12 +259,14 @@ test('ElementAt', t => {
 })
 
 test('ElementAtOrDefault', t => {
-  const a = new List<string>(['hey', 'hola', 'que', 'tal'])
+  const a = new List<string>(['hey', 'hola', 'que', null])
   t.is(a.ElementAtOrDefault(0), 'hey')
   t.throws(
     () => a.ElementAtOrDefault(4),
     /ArgumentOutOfRangeException: index is less than 0 or greater than or equal to the number of elements in source./
   )
+  t.is(a.ElementAtOrDefault(3), undefined)
+  t.is(a.ElementAtOrDefault(3, 'test'), 'test')
 })
 
 test('Except', t => {
@@ -307,6 +309,111 @@ test('GroupBy', t => {
     '8': ['Barley']
   }
   t.deepEqual(pets.GroupBy(pet => pet.Age, pet => pet.Name), result)
+})
+
+test('GroupByComplex_1', t => {
+  const pets = new List<Pet>([
+    new Pet({ Age: 8, Name: 'Barley' }),
+    new Pet({ Age: 4, Name: 'Boots' }),
+    new Pet({ Age: 1, Name: 'Whiskers' }),
+    new Pet({ Age: 4, Name: 'Daisy' })
+  ])
+  const result = new Grouping<Number, String>([
+    { key: 1, items: new List(['Whiskers']) },
+    { key: 4, items: new List(['Boots', 'Daisy']) },
+    { key: 8, items: new List(['Barley']) }
+  ])
+
+  t.deepEqual(pets.GroupByComplex(pet => pet.Age, pet => pet.Name), result)
+})
+
+test('GroupByComplex_Throws', t => {
+  const pets = new List<Pet>([
+    new Pet({ Age: 8, Name: 'Barley' }),
+    new Pet({ Age: 4, Name: 'Boots' }),
+    new Pet({ Age: 1, Name: 'Whiskers' }),
+    new Pet({ Age: 4, Name: 'Daisy' })
+  ])
+
+  t.throws(
+    () => pets.GroupByComplex(pet => ({ Age: pet.Age }), pet => pet.Name),
+    Error,
+    'keyExtractor does not return either a string or number, and no hashExtractor given.'
+  )
+})
+
+test('GroupByComplex_HashExtractor', t => {
+  const pets = new List<Pet>([
+    new Pet({ Age: 8, Name: 'Barley' }),
+    new Pet({ Age: 4, Name: 'Boots' }),
+    new Pet({ Age: 1, Name: 'Whiskers' }),
+    new Pet({ Age: 4, Name: 'Daisy' })
+  ])
+  const result = new Grouping<{ Age: number }, String>([
+    { key: { Age: 1 }, items: new List(['Whiskers']) },
+    { key: { Age: 4 }, items: new List(['Boots', 'Daisy']) },
+    { key: { Age: 8 }, items: new List(['Barley']) }
+  ])
+
+  t.deepEqual(
+    pets.GroupByComplex(
+      pet => ({ Age: pet.Age }),
+      pet => pet.Name,
+      pet => pet.Age
+    ),
+    result
+  )
+})
+
+test('GroupByComplex_DefaultGroupType', t => {
+  const pets = new List<Pet>([
+    new Pet({ Age: 8, Name: 'Barley' }),
+    new Pet({ Age: 4, Name: 'Boots' }),
+    new Pet({ Age: 1, Name: 'Whiskers' }),
+    new Pet({ Age: 4, Name: 'Daisy' })
+  ])
+  const result = new Grouping<Number, Pet>([
+    { key: 1, items: new List([new Pet({ Age: 1, Name: 'Whiskers' })]) },
+    {
+      key: 4,
+      items: new List([
+        new Pet({ Age: 4, Name: 'Boots' }),
+        new Pet({ Age: 4, Name: 'Daisy' })
+      ])
+    },
+    { key: 8, items: new List([new Pet({ Age: 8, Name: 'Barley' })]) }
+  ])
+
+  t.deepEqual(pets.GroupByComplex(pet => pet.Age), result)
+})
+
+test('GroupByComplex_Empty', t => {
+  const pets = new List<Pet>()
+  const result = new Grouping<Number, Pet>()
+
+  t.deepEqual(pets.GroupByComplex(pet => pet.Age), result)
+})
+
+test('Grouping_ToArray', t => {
+  const pets = new List<Pet>([
+    new Pet({ Age: 8, Name: 'Barley' }),
+    new Pet({ Age: 4, Name: 'Boots' }),
+    new Pet({ Age: 1, Name: 'Whiskers' }),
+    new Pet({ Age: 4, Name: 'Daisy' })
+  ])
+  const result: { key: number; items: Pet[] }[] = [
+    { key: 1, items: [new Pet({ Age: 1, Name: 'Whiskers' })] },
+    {
+      key: 4,
+      items: [
+        new Pet({ Age: 4, Name: 'Boots' }),
+        new Pet({ Age: 4, Name: 'Daisy' })
+      ]
+    },
+    { key: 8, items: [new Pet({ Age: 8, Name: 'Barley' })] }
+  ]
+
+  t.deepEqual(pets.GroupByComplex(pet => pet.Age).ToArray(), result)
 })
 
 test('GroupJoin', t => {
