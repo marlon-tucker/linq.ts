@@ -222,7 +222,11 @@ abstract class ListInternal<T> {
     index: number,
     defaultValue: T | undefined = undefined
   ): T {
-    return this.ElementAt(index) || defaultValue
+    if (index < this.Count()) {
+      return this._elements[index]
+    } else {
+      return defaultValue
+    }
   }
 
   /**
@@ -257,9 +261,14 @@ abstract class ListInternal<T> {
     predicate: (value?: T, index?: number, list?: T[]) => boolean
   ): T
   public FirstOrDefault(
-    predicate?: (value?: T, index?: number, list?: T[]) => boolean
+    predicate: (value?: T, index?: number, list?: T[]) => boolean,
+    defaultValue: T
+  ): T
+  public FirstOrDefault(
+    predicate?: (value?: T, index?: number, list?: T[]) => boolean,
+    defaultValue: T = undefined
   ): T {
-    return this.Count(predicate) ? this.First(predicate) : undefined
+    return this.Count(predicate) ? this.First(predicate) : defaultValue
   }
 
   /**
@@ -293,6 +302,11 @@ abstract class ListInternal<T> {
     }, initialValue)
   }
 
+  /**
+   * Groups the elements of a sequence according to a specified key selector function.
+   * This method follows the behavior of LINQ.NET more closely.
+   * If the key extractor returns either a string or a number, a hash extractor function does not need to be given.
+   */
   public GroupByComplex<TKey, TGroup = T>(
     keyExtractor: (item: T) => TKey,
     mapper?: (item: T) => TGroup,
@@ -415,9 +429,14 @@ abstract class ListInternal<T> {
     predicate: (value?: T, index?: number, list?: T[]) => boolean
   ): T
   public LastOrDefault(
-    predicate?: (value?: T, index?: number, list?: T[]) => boolean
+    predicate: (value?: T, index?: number, list?: T[]) => boolean,
+    defaultValue: T
+  ): T
+  public LastOrDefault(
+    predicate?: (value?: T, index?: number, list?: T[]) => boolean,
+    defaultValue: T = undefined
   ): T {
-    return this.Count(predicate) ? this.Last(predicate) : undefined
+    return this.Count(predicate) ? this.Last(predicate) : defaultValue
   }
 
   /**
@@ -592,9 +611,10 @@ abstract class ListInternal<T> {
    * this method throws an exception if there is more than one element in the sequence.
    */
   public SingleOrDefault(
-    predicate?: (value?: T, index?: number, list?: T[]) => boolean
+    predicate?: (value?: T, index?: number, list?: T[]) => boolean,
+    defaultValue: T = undefined
   ): T {
-    return this.Count(predicate) ? this.Single(predicate) : undefined
+    return this.Count(predicate) ? this.Single(predicate) : defaultValue
   }
 
   /**

@@ -259,14 +259,10 @@ test('ElementAt', t => {
 })
 
 test('ElementAtOrDefault', t => {
-  const a = new List<string>(['hey', 'hola', 'que', null])
+  const a = new List<string>(['hey', 'hola', 'que'])
   t.is(a.ElementAtOrDefault(0), 'hey')
-  t.throws(
-    () => a.ElementAtOrDefault(4),
-    /ArgumentOutOfRangeException: index is less than 0 or greater than or equal to the number of elements in source./
-  )
-  t.is(a.ElementAtOrDefault(3), undefined)
-  t.is(a.ElementAtOrDefault(3, 'test'), 'test')
+  t.is(a.ElementAtOrDefault(10), undefined)
+  t.is(a.ElementAtOrDefault(10, 'test'), 'test')
 })
 
 test('Except', t => {
@@ -287,6 +283,7 @@ test('First', t => {
 test('FirstOrDefault', t => {
   t.is(new List<string>(['hey', 'hola', 'que', 'tal']).FirstOrDefault(), 'hey')
   t.is(new List<string>().FirstOrDefault(), undefined)
+  t.is(new List<string>().FirstOrDefault(null, 'test'), 'test')
 })
 
 test('ForEach', t => {
@@ -545,6 +542,7 @@ test('Last', t => {
 test('LastOrDefault', t => {
   t.is(new List<string>(['hey', 'hola', 'que', 'tal']).LastOrDefault(), 'tal')
   t.is(new List<string>().LastOrDefault(), undefined)
+  t.is(new List<string>().LastOrDefault(null, 'test'), 'test')
 })
 
 test('Max', t => {
@@ -860,6 +858,7 @@ test('SingleOrDefault', t => {
   const fruits3 = new List<string>(['orange', 'apple'])
   const numbers1 = new List([1, 2, 3, 4, 5, 5])
   t.is(fruits1.SingleOrDefault(), undefined)
+  t.is(fruits1.SingleOrDefault(null, 'test'), 'test')
   t.is(fruits2.SingleOrDefault(), 'orange')
   t.throws(
     () => fruits3.SingleOrDefault(),
@@ -867,6 +866,7 @@ test('SingleOrDefault', t => {
   )
   t.is(numbers1.SingleOrDefault(x => x === 1), 1)
   t.is(numbers1.SingleOrDefault(x => x > 5), undefined)
+  t.is(numbers1.SingleOrDefault(x => x > 5, 1), 1)
   t.throws(
     () => numbers1.SingleOrDefault(x => x === 5),
     /The collection does not contain exactly one element./
